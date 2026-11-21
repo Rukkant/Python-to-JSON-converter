@@ -221,3 +221,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# My custom ignored files
+*_encoded.json
+*.txt
+
