@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Universal JSON Converter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e2e;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .app-card {
+      background: #2a2a3c;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      text-align: center;
+      width: 380px;
+    }
+    h2 { margin-top: 0; font-size: 20px; }
+    input[type="file"] {
+      margin: 20px 0;
+      color: #ccc;
+    }
+    .convert-btn {
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 15px;
+      border-radius: 6px;
+      cursor: pointer;
+      width: 100%;
+    }
+    .convert-btn:hover { background-color: #45a049; }
+
+    /* Custom Modal Popup Overlay */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.65);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: #ffffff;
+      color: #222;
+      width: 360px;
+      padding: 25px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .modal-title {
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #444;
+    }
+    .modal-msg {
+      font-size: 14px;
+      margin-bottom: 20px;
+      white-space: pre-line;
+    }
+    .error-text { color: #d32f2f; }
+    .success-text { color: #111111; }
+    .ok-btn {
+      background: #333;
+      color: white;
+      border: none;
+      padding: 8px 28px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .ok-btn:hover { background: #555; }
+  </style>
+</head>
+<body>
+
+  <div class="app-card">
+    <h2>Universal JSON Converter</h2>
+    <p style="font-size: 13px; color: #bbb;">Select a .py, .pyw, .pyi, or .txt file</p>
+    <input type="file" id="fileInput" accept=".txt,.py,.pyw,.pyi" />
+    <button class="convert-btn" onclick="convertToJsonUniversal()">Convert to JSON</button>
+  </div>
+
+  <!-- Custom Popup Window -->
+  <div id="customModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title" id="modalTitle">System Warning</div>
+      <div class="modal-msg" id="modalMsg"></div>
+      <button class="ok-btn" id="okBtn" onclick="closeModal()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    function cleanPythonContent(rawText) {
+      // Deletes blank lines entirely while keeping all code and comments intact
+      return rawText
+        .split(/\r?\n/)
+        .filter(line => line.trim() !== '')
+        .join('\n');
+    }
+
+    function showCustomPopup(title, message, isError = false) {
+      document.getElementById('modalTitle').textContent = title;
+      const msgEl = document.getElementById('modalMsg');
+      msgEl.textContent = message;
+      msgEl.className = 'modal-msg ' + (isError ? 'error-text' : 'success-text');
+      
+      const modal = document.getElementById('customModal');
+      modal.style.display = 'flex';
+      document.getElementById('okBtn').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('customModal').style.display = 'none';
+    }
+
+    // Allow pressing Enter to close the custom popup
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && document.getElementById('customModal').style.display === 'flex') {
+        closeModal();
+      }
+    });
+
+    function convertToJsonUniversal() {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        showCustomPopup("System Warning", "❌ Error: No file selected.", true);
+        return;
+      }
+
+      const allowedExtensions = [".txt", ".py", ".pyw", ".pyi"];
+      const dotIndex = file.name.lastIndexOf(".");
+      const originalExtension = dotIndex !== -1 ? file.name.slice(dotIndex).toLowerCase() : "";
+      const baseName = dotIndex !== -1 ? file.name.slice(0, dotIndex) : file.name;
+
+      if (!allowedExtensions.includes(originalExtension)) {
+        showCustomPopup(
+          "System Warning",
+          `❌ Error: '${originalExtension}' is not supported.\nSupported files: ${allowedExtensions.join(", ")}`,
+          true
+        );
+        return;
+      }
+
+      const jsonFilename = `${baseName}_encoded.json`;
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+        try {
+          const rawContent = event.target.result;
+          const cleanedContent = cleanPythonContent(rawContent);
+
+          const jsonPayload = {
+            filename: jsonFilename,
+            extension: ".json",
+            content_type: "JSON_file",
+            code: cleanedContent
+          };
+
+          const blob = new Blob([JSON.stringify(jsonPayload, null, 4)], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = jsonFilename;
+          a.click();
+          URL.revokeObjectURL(url);
+
+          showCustomPopup(
+            "System Warning",
+            `✨ Universal Conversion Completed!\n\nSaved Output: ${jsonFilename}`,
+            false
+          );
+        } catch (err) {
+          showCustomPopup(
+            "System Warning",
+            `❌ Failed to process conversion:\n${err.message}`,
+            true
+          );
+        }
+      };
+
+      reader.readAsText(file);
+    }
+  </script>
+
+</body>
+</html>
